@@ -25,12 +25,17 @@ async function main() {
     console.error("ERROR: frozen-tx.json is still the placeholder — replace it with the file sent to you.");
     process.exit(1);
   }
+  if (!frozen.txBase64) {
+    console.error("ERROR: frozen-tx.json is missing txBase64 — this file is invalid.");
+    process.exit(1);
+  }
 
   console.log(`\nTransaction details`);
-  console.log(`  ${frozen.description}`);
-  console.log(`  Memo : ${frozen.memo}`);
-  console.log(`  From : ${frozen.multisigAccount}`);
-  console.log(`  ID   : ${frozen.transactionId}\n`);
+  if (frozen.description)    console.log(`  ${frozen.description}`);
+  if (frozen.memo)           console.log(`  Memo : ${frozen.memo}`);
+  if (frozen.multisigAccount) console.log(`  From : ${frozen.multisigAccount}`);
+  if (frozen.transactionId)  console.log(`  ID   : ${frozen.transactionId}`);
+  console.log();
 
   const txBytes    = Buffer.from(frozen.txBase64, "base64");
   const tx         = Transaction.fromBytes(txBytes);
