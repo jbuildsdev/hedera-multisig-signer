@@ -1,9 +1,29 @@
 require("dotenv").config();
-const fs   = require("node:fs");
-const path = require("node:path");
-const { PrivateKey, Transaction } = require("@hashgraph/sdk");
+const fs       = require("node:fs");
+const path     = require("node:path");
+const readline = require("node:readline");
+const { PrivateKey, Transaction, TransferTransaction } = require("@hashgraph/sdk");
 
 const FROZEN_FILE = path.join(__dirname, "frozen-tx.json");
+
+function prompt(question) {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) => rl.question(question, (ans) => { rl.close(); resolve(ans); }));
+}
+
+function decode(tx) {
+  const lines = [
+    `  Type : ${tx.constructor.name}`,
+    `  ID   : ${tx.transactionId}`,
+    ...(tx.transactionMemo ? [`  Memo : ${tx.transactionMemo}`] : []),
+    ...(tx instanceof TransferTransaction && tx.hbarTransfers.size > 0
+      ? [`  Transfers:`, ...[...tx.hbarTransfers].map(([accountId, amount]) =>
+          `    ${accountId}  ${amount.toTinybars() > 0n ? "+" : ""}${amount}`
+        )]
+      : []),
+  ];
+  return lines.join("\n");
+}
 
 async function main() {
   const myPrivateKey = process.env.MY_PRIVATE_KEY?.trim();
@@ -29,21 +49,21 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`\nTransaction details`);
-  if (frozen.description)    console.log(`  ${frozen.description}`);
-  if (frozen.memo)           console.log(`  Memo : ${frozen.memo}`);
-  if (frozen.multisigAccount) console.log(`  From : ${frozen.multisigAccount}`);
-  if (frozen.transactionId)  console.log(`  ID   : ${frozen.transactionId}`);
-  console.log();
+  const txBytes = Buffer.from(frozen.txBase64, "base64");
+  const tx      = Transaction.fromBytes(txBytes);
 
-  const txBytes    = Buffer.from(frozen.txBase64, "base64");
-  const tx         = Transaction.fromBytes(txBytes);
+  console.log(`\n${decode(tx)}\n`);
+
+  const answer = await prompt("Sign this transaction? (y/n): ");
+  if (answer.trim().toLowerCase() !== "y") {
+    console.log("\nAborted. Nothing was signed.");
+    process.exit(0);
+  }
+
   const privateKey = PrivateKey.fromStringECDSA(myPrivateKey);
   const bodyBytes  = tx._signedTransactions.get(0).bodyBytes;
   const sigBytes   = privateKey.sign(bodyBytes);
 
-  // Name the file after the first 8 chars of the raw public key — unique per signer,
-  // no coordination needed, operator can cross-reference against state.json.
   const keyPrefix = privateKey.publicKey.toStringRaw().slice(0, 8);
   const sigFile   = path.join(__dirname, `sig-${keyPrefix}.json`);
 
@@ -52,7 +72,7 @@ async function main() {
     signature: Buffer.from(sigBytes).toString("base64"),
   }, null, 2));
 
-  console.log(`Signed. Send this file to the initiator:`);
+  console.log(`\nSigned. Send this file to the initiator:`);
   console.log(`  sig-${keyPrefix}.json\n`);
 }
 
