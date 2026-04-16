@@ -1,0 +1,12 @@
+{
+  "name": "hedera-multisig-signer",
+  "version": "1.0.0",
+  "description": "Sign a pending Hedera multisig transaction with your private key.",
+  "scripts": {
+    "sign": "node sign.js"
+  },
+  "dependencies": {
+    "@hashgraph/sdk": "^2.81.0",
+    "dotenv": "^17.0.0"
+  }
+}
