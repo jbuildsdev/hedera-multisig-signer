@@ -56,7 +56,7 @@ The script will show you exactly what you are signing. Read it carefully.
 After running, you'll find your signature file at:
 
 ```
-my-signature.json
+sig-<keyprefix>.json
 ```
 
 Send that file back to the initiator. That's all you need to do.

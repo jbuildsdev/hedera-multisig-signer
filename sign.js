@@ -4,7 +4,6 @@ const path = require("node:path");
 const { PrivateKey, Transaction } = require("@hashgraph/sdk");
 
 const FROZEN_FILE = path.join(__dirname, "frozen-tx.json");
-const SIG_FILE    = path.join(__dirname, "my-signature.json");
 
 async function main() {
   const myPrivateKey = process.env.MY_PRIVATE_KEY?.trim();
@@ -43,13 +42,18 @@ async function main() {
   const bodyBytes  = tx._signedTransactions.get(0).bodyBytes;
   const sigBytes   = privateKey.sign(bodyBytes);
 
-  fs.writeFileSync(SIG_FILE, JSON.stringify({
+  // Name the file after the first 8 chars of the raw public key — unique per signer,
+  // no coordination needed, operator can cross-reference against state.json.
+  const keyPrefix = privateKey.publicKey.toStringRaw().slice(0, 8);
+  const sigFile   = path.join(__dirname, `sig-${keyPrefix}.json`);
+
+  fs.writeFileSync(sigFile, JSON.stringify({
     publicKey: privateKey.publicKey.toString(),
     signature: Buffer.from(sigBytes).toString("base64"),
   }, null, 2));
 
   console.log(`Signed. Send this file to the initiator:`);
-  console.log(`  my-signature.json\n`);
+  console.log(`  sig-${keyPrefix}.json\n`);
 }
 
 main().catch((err) => {
